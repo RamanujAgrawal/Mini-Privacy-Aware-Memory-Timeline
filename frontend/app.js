@@ -125,16 +125,23 @@ function showToast(message, type = "success") {
   }, 3500);
 }
 
-// Format ISO date to readable string
+// Format ISO date to readable string in India Standard Time (IST, UTC+5:30)
 function formatDate(isoStr) {
   if (!isoStr) return "";
-  const d = new Date(isoStr);
-  return d.toLocaleDateString("en-US", {
+  let s = String(isoStr).trim();
+  s = s.replace(" ", "T");
+  if (!s.endsWith("Z") && !/[+-]\d{2}:?\d{2}$/.test(s)) {
+    s += "Z";
+  }
+  const d = new Date(s);
+  return d.toLocaleString("en-IN", {
+    timeZone: "Asia/Kolkata",
     month: "short",
     day: "numeric",
     hour: "2-digit",
-    minute: "2-digit"
-  });
+    minute: "2-digit",
+    hour12: true
+  }) + " IST";
 }
 
 // -------------------------------------------------------------

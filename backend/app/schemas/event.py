@@ -1,6 +1,6 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional, List
-from pydantic import BaseModel, Field, field_validator, ConfigDict
+from pydantic import BaseModel, Field, field_validator, field_serializer, ConfigDict
 from app.models.event import EventCategory
 
 
@@ -32,6 +32,12 @@ class EventResponse(BaseModel):
     type: str
     title: str
     content: str
+
+    @field_serializer("timestamp")
+    def serialize_timestamp(self, dt: datetime, _info) -> str:
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return dt.isoformat()
 
     model_config = ConfigDict(from_attributes=True)
 
