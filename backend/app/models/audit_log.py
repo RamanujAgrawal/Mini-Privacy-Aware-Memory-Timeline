@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Index
 from sqlalchemy.orm import relationship
 from app.core.database import Base
 
@@ -18,6 +18,11 @@ class AuditLog(Base):
     action = Column(String(100), nullable=False)
     event_type = Column(String(50), nullable=True)
     result = Column(String(50), nullable=False)  # e.g., "ALLOWED", "DENIED", "CREATED", "DELETED", "UPDATED"
+
+    # Composite B-tree index for descending chronological audit trail queries
+    __table_args__ = (
+        Index("ix_audit_logs_user_timestamp", "user_id", "timestamp"),
+    )
 
     # Relationships
     user = relationship("User", back_populates="audit_logs")

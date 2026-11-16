@@ -51,22 +51,32 @@ class EventService:
         return event
 
     @staticmethod
-    def apply_privacy_rules(db: Session, user_id: int, event: Event) -> Optional[Event]:
+    def apply_privacy_rules(
+        db: Session,
+        user_id: int,
+        event: Event,
+        active_rules: Optional[List[PrivacyRule]] = None
+    ) -> Optional[Event]:
         """
         Applies user-defined granular privacy rules (keyword redaction & pattern drop).
         
-        Important Design Note:
+        Optimization Note:
+        Accepts optional `active_rules` parameter so batch queries (like get_events)
+        can pre-fetch rules in a single query, completely eliminating N+1 database roundtrips.
+        
+        Safety Guarantee:
         When redacting content, we construct an in-memory detached Event copy.
         We deliberately DO NOT mutate the attached SQLAlchemy model instance,
-        as doing so would mark the record dirty and overwrite the user's permanent
-        database record with '[REDACTED BY PRIVACY RULE]' text.
+        preventing accidental permanent database record corruption.
         """
-        # Find active rules matching this category or global rules ('all')
-        rules = db.query(PrivacyRule).filter(
-            PrivacyRule.user_id == user_id,
-            PrivacyRule.is_enabled == True,
-            or_(PrivacyRule.category == event.type, PrivacyRule.category == "all")
-        ).all()
+        if active_rules is not None:
+            rules = [r for r in active_rules if r.category in (event.type, "all")]
+        else:
+            rules = db.query(PrivacyRule).filter(
+                PrivacyRule.user_id == user_id,
+                PrivacyRule.is_enabled == True,
+                or_(PrivacyRule.category == event.type, PrivacyRule.category == "all")
+            ).all()
 
         if not rules:
             return event
@@ -144,7 +154,7 @@ class EventService:
         1. Only enabled categories are included in the SQL query (`WHERE type IN (...)`).
         2. Disabled categories are never loaded from SQLite into memory.
         3. Supports date-range time slicing and full-text keyword search across title & content.
-        4. Applies granular redaction and drop rules before returning data.
+        4. High-performance: Pre-fetches privacy rules once to avoid N+1 queries.
         """
         allowed_categories = PrivacyService.get_allowed_categories(db, user_id)
 
@@ -192,10 +202,16 @@ class EventService:
         total = query.count()
         raw_items = query.order_by(desc(Event.timestamp)).offset(offset).limit(limit).all()
 
+        # Optimization: Pre-fetch active privacy rules once to eliminate N+1 database queries
+        active_rules = db.query(PrivacyRule).filter(
+            PrivacyRule.user_id == user_id,
+            PrivacyRule.is_enabled == True
+        ).all()
+
         # Apply granular privacy rules (keyword redaction or pattern drop)
         processed_items = []
         for ev in raw_items:
-            processed = EventService.apply_privacy_rules(db, user_id, ev)
+            processed = EventService.apply_privacy_rules(db, user_id, ev, active_rules=active_rules)
             if processed is not None:
                 processed_items.append(processed)
 

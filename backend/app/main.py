@@ -32,6 +32,19 @@ async def lifespan(app: FastAPI):
 
     # Create all tables on startup
     Base.metadata.create_all(bind=engine)
+
+    # Ensure high-performance composite indexes are created in SQLite
+    if settings.DATABASE_URL.startswith("sqlite"):
+        try:
+            with engine.connect() as conn:
+                from sqlalchemy import text
+                conn.execute(text("CREATE INDEX IF NOT EXISTS ix_events_user_timestamp ON events(user_id, timestamp)"))
+                conn.execute(text("CREATE INDEX IF NOT EXISTS ix_events_user_type_timestamp ON events(user_id, type, timestamp)"))
+                conn.execute(text("CREATE INDEX IF NOT EXISTS ix_audit_logs_user_timestamp ON audit_logs(user_id, timestamp)"))
+                conn.execute(text("CREATE INDEX IF NOT EXISTS ix_privacy_rules_user_enabled ON privacy_rules(user_id, is_enabled)"))
+                conn.commit()
+        except Exception:
+            pass
     
     # Ensure seeded demo user exists
     db = SessionLocal()
