@@ -1,4 +1,4 @@
-// API Base URL (relative so it works on any host/port where backend is served)
+// API Base URL
 const API_BASE = window.location.origin;
 
 // State
@@ -28,6 +28,10 @@ const auditList = document.getElementById("auditList");
 const refreshAuditBtn = document.getElementById("refreshAuditBtn");
 const refreshAllBtn = document.getElementById("refreshAllBtn");
 
+// Navigation Tabs
+const navTabs = document.querySelectorAll(".nav-tab");
+const viewPanels = document.querySelectorAll(".view-panel");
+
 // Modal elements
 const createModal = document.getElementById("createModal");
 const openCreateModalBtn = document.getElementById("openCreateModalBtn");
@@ -40,6 +44,24 @@ const probeEventId = document.getElementById("probeEventId");
 const runProbeBtn = document.getElementById("runProbeBtn");
 const probeResult = document.getElementById("probeResult");
 const toast = document.getElementById("toast");
+
+// Navigation Tab Switcher
+function switchView(viewName) {
+  navTabs.forEach(tab => {
+    tab.classList.toggle("active", tab.dataset.view === viewName);
+  });
+  viewPanels.forEach(panel => {
+    panel.classList.toggle("active", panel.id === `view-${viewName}`);
+  });
+  window.location.hash = viewName;
+  if (viewName === "audit") {
+    fetchAuditLog();
+  }
+}
+
+navTabs.forEach(tab => {
+  tab.addEventListener("click", () => switchView(tab.dataset.view));
+});
 
 // Toast helper
 function showToast(message, type = "success") {
@@ -95,7 +117,7 @@ function renderPermissions() {
         <div class="category-icon ${meta.class}">${meta.icon}</div>
         <div>
           <div class="toggle-name">${meta.label}</div>
-          <div class="toggle-status-text ${isEnabled ? 'active' : 'blocked'}">${isEnabled ? "✓ Active (API allowed)" : "✕ Restricted (API blocked)"}</div>
+          <div class="toggle-status-text ${isEnabled ? 'active' : 'blocked'}">${isEnabled ? "Allowed" : "Blocked"}</div>
         </div>
       </div>
       <label class="switch">
@@ -125,15 +147,13 @@ async function updatePermission(category, isEnabled) {
     
     currentPermissions[category] = isEnabled;
     renderPermissions();
-    showToast(`Privacy updated: '${category}' is now ${isEnabled ? "ON (allowed)" : "OFF (restricted)"}`);
+    showToast(`'${category}' is now ${isEnabled ? "allowed" : "blocked"}`);
     
-    // Refresh timeline and audit trail immediately
+    // Refresh timeline and audit trail
     await fetchEvents();
-    await fetchAuditLog();
   } catch (err) {
     console.error("Error updating permission:", err);
     showToast(`Failed to update permission: ${err.message}`, "error");
-    // Revert UI
     renderPermissions();
   }
 }
@@ -176,8 +196,8 @@ function renderEvents(items) {
   if (!items || items.length === 0) {
     eventsList.innerHTML = `
       <div class="empty-timeline">
-        <h4>No events available</h4>
-        <p>No memory events found for this filter. If categories are turned OFF in Privacy Controls, their data is strictly blocked by the backend API.</p>
+        <h4>No events visible</h4>
+        <p>No memory events found for this filter. If a category is turned OFF in Privacy Controls, its events are strictly omitted by the backend API.</p>
       </div>
     `;
     return;
@@ -197,7 +217,7 @@ function renderEvents(items) {
       <div class="event-title">${escapeHtml(item.title)}</div>
       <div class="event-content">${escapeHtml(item.content)}</div>
       <div class="event-bottom">
-        <span class="event-id-tag">Event #${item.id}</span>
+        <span class="event-id-tag">ID: #${item.id}</span>
         <button class="btn-delete" data-id="${item.id}" title="Delete event">Delete</button>
       </div>
     `;
@@ -222,7 +242,6 @@ async function deleteEvent(eventId) {
     if (!res.ok) throw new Error("Delete failed");
     showToast(`Event #${eventId} deleted successfully`);
     await fetchEvents();
-    await fetchAuditLog();
   } catch (err) {
     console.error("Delete error:", err);
     showToast(`Error deleting event: ${err.message}`, "error");
@@ -230,24 +249,24 @@ async function deleteEvent(eventId) {
 }
 
 // -------------------------------------------------------------
-// Audit Log
+// Audit Log (View 2)
 // -------------------------------------------------------------
 async function fetchAuditLog() {
   try {
-    const res = await fetch(`${API_BASE}/audit-log?limit=25`);
+    const res = await fetch(`${API_BASE}/audit-log?limit=50`);
     if (!res.ok) throw new Error("Failed to fetch audit log");
     const data = await res.json();
     renderAuditLog(data.items);
   } catch (err) {
     console.error("Audit log error:", err);
-    auditList.innerHTML = `<div class="error-text">Failed to load audit logs: ${err.message}</div>`;
+    auditList.innerHTML = `<div class="audit-placeholder">Failed to load audit logs: ${err.message}</div>`;
   }
 }
 
 function renderAuditLog(items) {
   auditList.innerHTML = "";
   if (!items || items.length === 0) {
-    auditList.innerHTML = `<div class="section-desc" style="padding: 1rem 0;">No audit entries yet.</div>`;
+    auditList.innerHTML = `<div class="audit-placeholder">No audit entries recorded yet.</div>`;
     return;
   }
 
@@ -255,7 +274,6 @@ function renderAuditLog(items) {
     const entry = document.createElement("div");
     entry.className = "audit-entry";
     
-    // Result class
     const resKey = (item.result || "").toLowerCase();
     let resClass = "res-allowed";
     if (resKey.includes("denied")) resClass = "res-denied";
@@ -264,13 +282,13 @@ function renderAuditLog(items) {
     else if (resKey.includes("deleted")) resClass = "res-deleted";
 
     entry.innerHTML = `
-      <div class="audit-entry-top">
+      <div class="audit-entry-left">
         <span class="audit-action">${escapeHtml(item.action)}</span>
-        <span class="audit-result ${resClass}">${escapeHtml(item.result)}</span>
+        <span class="audit-type-tag">${item.event_type || "general"}</span>
       </div>
-      <div class="audit-meta">
-        <span>Type: ${item.event_type || "N/A"}</span>
-        <span>${formatDate(item.timestamp)}</span>
+      <div class="audit-entry-right">
+        <span class="audit-result ${resClass}">${escapeHtml(item.result)}</span>
+        <span class="audit-time">${formatDate(item.timestamp)}</span>
       </div>
     `;
     auditList.appendChild(entry);
@@ -278,7 +296,7 @@ function renderAuditLog(items) {
 }
 
 // -------------------------------------------------------------
-// Direct API Probe (Test Backend 403 vs 200)
+// Direct API Probe (View 3)
 // -------------------------------------------------------------
 async function probeDirectEvent() {
   const id = probeEventId.value.trim();
@@ -296,14 +314,14 @@ async function probeDirectEvent() {
       probeResult.innerHTML = `
         <strong>HTTP 200 OK (Allowed)</strong><br>
         Event #${data.id} [${data.type}]: "${escapeHtml(data.title)}"<br>
-        <em>Authorization allowed: category is currently ON.</em>
+        <em>Active privacy policy allows access to this category.</em>
       `;
     } else if (res.status === 403) {
       probeResult.className = "probe-output denied";
       probeResult.innerHTML = `
         <strong>HTTP 403 Forbidden (Blocked by Backend)</strong><br>
         Detail: ${escapeHtml(data.detail || data.message)}<br>
-        <em>Audit trail recorded a DENIED security entry.</em>
+        <em>Security verification passed: A 'DENIED' entry was written to the Audit Trail.</em>
       `;
     } else if (res.status === 404) {
       probeResult.className = "probe-output denied";
@@ -312,8 +330,6 @@ async function probeDirectEvent() {
       probeResult.className = "probe-output denied";
       probeResult.innerHTML = `<strong>HTTP ${res.status}</strong>: ${escapeHtml(JSON.stringify(data))}`;
     }
-    // Refresh audit log so the evaluator immediately sees the new record
-    await fetchAuditLog();
   } catch (err) {
     probeResult.className = "probe-output denied";
     probeResult.innerHTML = `Request error: ${err.message}`;
@@ -356,7 +372,6 @@ createEventForm.addEventListener("submit", async (e) => {
     createModal.classList.add("hidden");
     showToast(`Created event #${created.id} [${created.type}]`);
     await fetchEvents();
-    await fetchAuditLog();
   } catch (err) {
     console.error("Create event error:", err);
     showToast(`Error creating event: ${err.message}`, "error");
@@ -393,16 +408,15 @@ nextPageBtn.addEventListener("click", () => {
 // Probe button handler
 runProbeBtn.addEventListener("click", probeDirectEvent);
 
-// Refresh buttons
+// Refresh handlers
 refreshAuditBtn.addEventListener("click", fetchAuditLog);
 refreshAllBtn.addEventListener("click", async () => {
   await fetchPermissions();
   await fetchEvents();
-  await fetchAuditLog();
-  showToast("All data reloaded from backend.");
+  showToast("Timeline and privacy refreshed");
 });
 
-// Helper: Escape HTML to avoid XSS
+// Helper: Escape HTML
 function escapeHtml(str) {
   if (!str) return "";
   return String(str)
@@ -415,9 +429,13 @@ function escapeHtml(str) {
 
 // Initial Boot
 async function init() {
+  // Check hash route
+  const hash = window.location.hash.replace("#", "");
+  if (hash && ["timeline", "audit", "probe"].includes(hash)) {
+    switchView(hash);
+  }
   await fetchPermissions();
   await fetchEvents();
-  await fetchAuditLog();
 }
 
 init();

@@ -6,171 +6,153 @@
   <title>Chronis • Privacy-Aware Memory Timeline</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <!-- Ambient Background Lighting -->
-  <div class="ambient-glow glow-top"></div>
-  <div class="ambient-glow glow-right"></div>
-
   <!-- Header -->
   <header class="navbar">
     <div class="nav-container">
       <div class="brand">
         <div class="logo-mark">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"></circle>
+            <polyline points="12 6 12 12 16 14"></polyline>
           </svg>
         </div>
         <div class="brand-text">
           <h1>CHRONIS</h1>
-          <span class="subtext">Privacy-Aware Memory Timeline</span>
         </div>
       </div>
-      
+
+      <!-- Navigation Tabs -->
+      <nav class="nav-links">
+        <button class="nav-tab active" data-view="timeline">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
+          Timeline
+        </button>
+        <button class="nav-tab" data-view="audit">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+          Audit Trail
+        </button>
+        <button class="nav-tab" data-view="probe">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>
+          Security Probe
+        </button>
+      </nav>
+
       <div class="nav-actions">
-        <div class="status-indicator">
-          <span class="pulse-dot"></span>
-          <span class="status-text">Backend Protected</span>
-        </div>
         <div class="user-chip">
           <div class="avatar">AR</div>
-          <div class="user-info">
-            <span class="user-name">Alex River</span>
-            <span class="user-id">Demo User #1</span>
-          </div>
+          <span class="user-name">Alex River</span>
         </div>
-        <a href="/docs" target="_blank" class="btn btn-secondary btn-sm" title="Open Interactive OpenAPI Swagger Docs">
-          <span>Swagger Docs ↗</span>
-        </a>
-        <a href="/redoc" target="_blank" class="btn btn-outline btn-sm" title="Open ReDoc API Reference">
-          <span>ReDoc ↗</span>
+        <a href="/docs" target="_blank" class="btn btn-secondary btn-sm" title="Open Interactive API Docs">
+          <span>API Docs ↗</span>
         </a>
       </div>
     </div>
   </header>
 
   <main class="main-container">
-    <!-- Privacy Control Banner (Core Requirement) -->
-    <section class="card privacy-banner">
-      <div class="section-header">
-        <div class="header-title-group">
-          <div class="shield-icon">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
-            </svg>
-          </div>
+    <!-- VIEW 1: TIMELINE (HOME) -->
+    <div id="view-timeline" class="view-panel active">
+      <!-- Privacy Control Banner -->
+      <section class="card privacy-banner">
+        <div class="section-header">
           <div>
-            <h2>Privacy Controls <span class="badge-core">Backend Enforced</span></h2>
-            <p class="section-desc">If a category is toggled <strong>OFF</strong>, the backend strictly omits it from query results. Direct resource access returns <code class="code-pill">403 Forbidden</code>.</p>
+            <h2>Privacy Controls</h2>
+            <p class="section-desc">Categories toggled OFF are strictly filtered by the backend API.</p>
           </div>
-        </div>
-        <button id="refreshAllBtn" class="btn btn-outline btn-sm" title="Refresh all data">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
-          <span>Refresh</span>
-        </button>
-      </div>
-
-      <div class="toggles-grid" id="permissionsGrid">
-        <div class="toggle-placeholder">Loading privacy controls...</div>
-      </div>
-    </section>
-
-    <!-- Main Grid: Timeline & Controls (Left) vs Audit Log (Right) -->
-    <div class="workspace-grid">
-      <!-- Left Column: Timeline & Creation -->
-      <section class="left-pane">
-        <!-- Timeline Controls & Filters -->
-        <div class="card timeline-header-card">
-          <div class="filter-bar">
-            <div class="filter-group">
-              <span class="filter-label">Filter Category:</span>
-              <div class="btn-group" id="categoryFilters">
-                <button class="btn btn-filter active" data-type="all">All</button>
-                <button class="btn btn-filter" data-type="conversation">
-                  <span class="filter-dot dot-conversation"></span>Conversation
-                </button>
-                <button class="btn btn-filter" data-type="location">
-                  <span class="filter-dot dot-location"></span>Location
-                </button>
-                <button class="btn btn-filter" data-type="physiological">
-                  <span class="filter-dot dot-physiological"></span>Physiological
-                </button>
-                <button class="btn btn-filter" data-type="note">
-                  <span class="filter-dot dot-note"></span>Note
-                </button>
-              </div>
-            </div>
-            <button id="openCreateModalBtn" class="btn btn-primary">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-              <span>New Memory Event</span>
-            </button>
-          </div>
+          <button id="refreshAllBtn" class="btn btn-outline btn-sm" title="Refresh permissions and events">↻ Refresh</button>
         </div>
 
-        <!-- Direct API Privacy Probe (Demo Tool) -->
-        <div class="card probe-card">
-          <div class="probe-header">
-            <div class="probe-title-row">
-              <span class="terminal-tag">TEST HARNESS</span>
-              <span class="probe-title">API Direct Access Probe</span>
-            </div>
-            <span class="probe-desc">Attempt direct <code>GET /events/{id}</code> to prove backend authorization returns <code>403 Forbidden</code> when restricted.</span>
-          </div>
-          <div class="probe-form">
-            <div class="probe-input-wrap">
-              <span class="probe-method">GET</span>
-              <span class="probe-prefix">/events/</span>
-              <input type="number" id="probeEventId" placeholder="ID" value="1" min="1" class="probe-input">
-            </div>
-            <button id="runProbeBtn" class="btn btn-secondary btn-sm">Execute Request</button>
-          </div>
-          <div id="probeResult" class="probe-output hidden"></div>
-        </div>
-
-        <!-- Timeline Events List -->
-        <div class="timeline-container">
-          <div class="timeline-meta">
-            <h3 id="timelineHeading">Memory Timeline</h3>
-            <span class="meta-count" id="eventsCount">Loading events...</span>
-          </div>
-          
-          <div class="events-list" id="eventsList">
-            <!-- Events rendered by app.js -->
-          </div>
-          
-          <!-- Pagination -->
-          <div class="pagination-bar" id="paginationBar">
-            <button id="prevPageBtn" class="btn btn-outline btn-sm" disabled>← Previous</button>
-            <span id="pageInfo" class="page-info">Page 1</span>
-            <button id="nextPageBtn" class="btn btn-outline btn-sm">Next →</button>
-          </div>
+        <div class="toggles-grid" id="permissionsGrid">
+          <div class="toggle-placeholder">Loading privacy controls...</div>
         </div>
       </section>
 
-      <!-- Right Column: Audit Log -->
-      <aside class="right-pane">
-        <div class="card audit-card">
-          <div class="audit-header">
-            <div>
-              <div class="audit-title-row">
-                <h3>Audit Trail</h3>
-                <span class="badge-readonly">Immutable</span>
-              </div>
-              <p class="section-desc">Forensic event trail for security, compliance & privacy checks.</p>
-            </div>
-            <button id="refreshAuditBtn" class="btn btn-icon" title="Refresh Audit Log">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
-            </button>
-          </div>
-
-          <div class="audit-list" id="auditList">
-            <!-- Audit entries rendered by app.js -->
-            <div class="audit-placeholder">Loading audit trail...</div>
+      <!-- Timeline Controls -->
+      <div class="timeline-toolbar">
+        <div class="filter-group">
+          <span class="toolbar-label">Category:</span>
+          <div class="btn-group" id="categoryFilters">
+            <button class="btn btn-filter active" data-type="all">All</button>
+            <button class="btn btn-filter" data-type="conversation">Conversation</button>
+            <button class="btn btn-filter" data-type="location">Location</button>
+            <button class="btn btn-filter" data-type="physiological">Physiological</button>
+            <button class="btn btn-filter" data-type="note">Note</button>
           </div>
         </div>
-      </aside>
+        <button id="openCreateModalBtn" class="btn btn-primary">+ New Event</button>
+      </div>
+
+      <!-- Events List -->
+      <div class="timeline-container">
+        <div class="timeline-meta">
+          <span class="meta-count" id="eventsCount">Loading events...</span>
+        </div>
+        
+        <div class="events-list" id="eventsList">
+          <!-- Rendered by app.js -->
+        </div>
+
+        <!-- Pagination -->
+        <div class="pagination-bar" id="paginationBar">
+          <button id="prevPageBtn" class="btn btn-outline btn-sm" disabled>← Previous</button>
+          <span id="pageInfo" class="page-info">Page 1</span>
+          <button id="nextPageBtn" class="btn btn-outline btn-sm">Next →</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- VIEW 2: AUDIT TRAIL (DEDICATED PAGE) -->
+    <div id="view-audit" class="view-panel">
+      <div class="page-header">
+        <div>
+          <h2>Audit Trail</h2>
+          <p class="section-desc">Immutable log of privacy permission toggles, queries, and security checks.</p>
+        </div>
+        <button id="refreshAuditBtn" class="btn btn-outline btn-sm">↻ Refresh Audit Log</button>
+      </div>
+
+      <div class="card audit-full-card">
+        <div class="audit-list" id="auditList">
+          <div class="audit-placeholder">Loading audit trail...</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- VIEW 3: SECURITY PROBE (DEDICATED PAGE) -->
+    <div id="view-probe" class="view-panel">
+      <div class="page-header">
+        <div>
+          <h2>Security & Authorization Probe</h2>
+          <p class="section-desc">Directly test individual event retrieval to verify that disabled categories return <code>403 Forbidden</code>.</p>
+        </div>
+      </div>
+
+      <div class="card probe-full-card">
+        <div class="probe-instructions">
+          <h4>How to test:</h4>
+          <ol>
+            <li>Go to the <strong>Timeline</strong> tab and toggle off a category (e.g. <em>Location</em> or <em>Physiological</em>).</li>
+            <li>Note the ID of an event in that category (e.g. ID <code>3</code> or <code>5</code>).</li>
+            <li>Enter the Event ID below and click <strong>Execute Direct GET</strong>.</li>
+            <li>Observe the backend returning an explicit <code>403 Forbidden</code> error response.</li>
+          </ol>
+        </div>
+
+        <div class="probe-form">
+          <div class="probe-input-wrap">
+            <span class="probe-method">GET</span>
+            <span class="probe-prefix">/events/</span>
+            <input type="number" id="probeEventId" placeholder="ID" value="1" min="1" class="probe-input">
+          </div>
+          <button id="runProbeBtn" class="btn btn-primary">Execute Direct GET</button>
+        </div>
+
+        <div id="probeResult" class="probe-output hidden"></div>
+      </div>
     </div>
   </main>
 
@@ -178,32 +160,30 @@
   <div id="createModal" class="modal-overlay hidden">
     <div class="modal card">
       <div class="modal-header">
-        <h3>Record Memory Event</h3>
+        <h3>Create New Memory Event</h3>
         <button id="closeCreateModalBtn" class="modal-close">&times;</button>
       </div>
       <form id="createEventForm">
         <div class="form-group">
           <label for="eventCategory">Category</label>
-          <div class="select-wrapper">
-            <select id="eventCategory" required>
-              <option value="conversation">💬 Conversation</option>
-              <option value="location">📍 Location</option>
-              <option value="physiological">❤️ Physiological</option>
-              <option value="note">📝 Note</option>
-            </select>
-          </div>
+          <select id="eventCategory" required>
+            <option value="conversation">Conversation</option>
+            <option value="location">Location</option>
+            <option value="physiological">Physiological</option>
+            <option value="note">Note</option>
+          </select>
         </div>
         <div class="form-group">
-          <label for="eventTitle">Event Title</label>
-          <input type="text" id="eventTitle" placeholder="e.g. Heart Rate Peak or Project Architecture Discussion" required maxlength="255">
+          <label for="eventTitle">Title</label>
+          <input type="text" id="eventTitle" placeholder="e.g. Team Standup or Heart Rate Peak" required maxlength="255">
         </div>
         <div class="form-group">
-          <label for="eventContent">Telemetry / Content</label>
-          <textarea id="eventContent" rows="4" placeholder="Detail notes, transcribed speech summary, or physiological sensor data..." required></textarea>
+          <label for="eventContent">Content</label>
+          <textarea id="eventContent" rows="4" placeholder="Event notes, location ping, or speech transcription..." required></textarea>
         </div>
         <div class="modal-actions">
           <button type="button" id="cancelCreateBtn" class="btn btn-outline">Cancel</button>
-          <button type="submit" class="btn btn-primary">Save to Memory</button>
+          <button type="submit" class="btn btn-primary">Save Event</button>
         </div>
       </form>
     </div>
