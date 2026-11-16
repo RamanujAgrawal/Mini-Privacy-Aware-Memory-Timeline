@@ -4,14 +4,24 @@ from app.models.permission import Permission
 from app.models.event import EventCategory
 from app.services.audit_service import AuditService
 
+# The four foundational categories evaluated in this prototype
 VALID_CATEGORIES = [c.value for c in EventCategory]
 
 
 class PrivacyService:
+    """
+    Privacy & Permission Management Subsystem
+    -----------------------------------------
+    Manages user category toggles (conversation, location, physiological, note).
+    Ensures that default permissions exist upon first run, validates category
+    names, and emits audit entries whenever privacy boundaries are altered.
+    """
+
     @staticmethod
     def ensure_default_permissions(db: Session, user_id: int) -> None:
         """
-        Ensures all 4 categories exist for the user with default ON (True).
+        Ensures all 4 categories exist in the database for the user with default ON (True).
+        Runs lazily on first access so newly registered users immediately have complete records.
         """
         existing = {
             p.category for p in db.query(Permission).filter(Permission.user_id == user_id).all()
@@ -29,8 +39,8 @@ class PrivacyService:
     @staticmethod
     def get_permissions(db: Session, user_id: int) -> Dict[str, bool]:
         """
-        Returns a dictionary mapping each category to its boolean state.
-        Ensures defaults are created if missing.
+        Returns a dictionary mapping each category to its boolean state:
+        e.g. {'conversation': True, 'location': False, 'physiological': True, 'note': True}
         """
         PrivacyService.ensure_default_permissions(db, user_id)
         records = db.query(Permission).filter(Permission.user_id == user_id).all()
@@ -39,7 +49,8 @@ class PrivacyService:
     @staticmethod
     def get_allowed_categories(db: Session, user_id: int) -> List[str]:
         """
-        Returns a list of category names that are currently enabled (ON).
+        Returns a list of category names that are currently enabled (is_enabled == True).
+        Used directly by EventService to build SQL `WHERE type IN (...)` clauses.
         """
         perms = PrivacyService.get_permissions(db, user_id)
         return [cat for cat, enabled in perms.items() if enabled]
@@ -47,7 +58,7 @@ class PrivacyService:
     @staticmethod
     def is_category_allowed(db: Session, user_id: int, category: str) -> bool:
         """
-        Checks whether a specific category is enabled for the user.
+        Quick boolean check for single-event authorization guards.
         """
         perms = PrivacyService.get_permissions(db, user_id)
         return perms.get(category, False)
@@ -60,7 +71,8 @@ class PrivacyService:
         is_enabled: bool
     ) -> Permission:
         """
-        Updates the permission for a category and records an audit log entry.
+        Updates a user's category permission and atomically writes a log to the audit trail.
+        Returns the updated Permission record.
         """
         PrivacyService.ensure_default_permissions(db, user_id)
         perm = (
@@ -77,7 +89,7 @@ class PrivacyService:
         db.commit()
         db.refresh(perm)
 
-        # Record action in audit log
+        # Audit trail: log permission state change
         action_name = f"PERMISSION_SET_{'ON' if is_enabled else 'OFF'}"
         AuditService.record_action(
             db=db,

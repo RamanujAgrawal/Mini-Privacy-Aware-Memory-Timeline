@@ -1,6 +1,6 @@
 from datetime import datetime
 from typing import Optional
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, Query, status, HTTPException
 from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.api.deps import get_current_user_id
@@ -12,6 +12,10 @@ router = APIRouter(tags=["Events"])
 
 
 def _parse_datetime_query(val: Optional[str]) -> Optional[datetime]:
+    """
+    Safely parses query parameter strings into datetime objects.
+    Handles URL-encoded '+' offsets (which often decode as spaces in query strings).
+    """
     if not val:
         return None
     cleaned = val.strip().replace(" ", "+")
@@ -20,7 +24,7 @@ def _parse_datetime_query(val: Optional[str]) -> Optional[datetime]:
     except Exception:
         raise HTTPException(
             status_code=422,
-            detail=f"Invalid datetime format: '{val}'. Expected ISO 8601 string."
+            detail=f"Invalid datetime format: '{val}'. Expected ISO 8601 string (e.g., 2026-11-16T10:00:00Z)."
         )
 
 

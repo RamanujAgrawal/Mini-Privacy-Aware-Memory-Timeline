@@ -12,12 +12,23 @@ from app.services.audit_service import AuditService
 
 
 class EventService:
+    """
+    Core Event & Privacy Service
+    ----------------------------
+    Handles event creation, collection querying, direct ID lookups, and deletion.
+    Enforces category-level access control and granular privacy rules before any
+    data is returned to the client.
+    """
+
     @staticmethod
     def create_event(db: Session, user_id: int, event_in: EventCreate) -> Event:
         """
-        Creates and stores a new event for the user, logging the creation.
+        Creates and stores a new memory event for the specified user.
+        Always records an audit log entry so ingestion history is transparent.
         """
+        # If client did not provide an explicit timestamp, default to UTC now
         ts = event_in.timestamp or datetime.now(timezone.utc)
+        
         event = Event(
             user_id=user_id,
             timestamp=ts,
@@ -29,6 +40,7 @@ class EventService:
         db.commit()
         db.refresh(event)
 
+        # Audit trail: record successful event ingestion
         AuditService.record_action(
             db=db,
             user_id=user_id,
@@ -41,9 +53,15 @@ class EventService:
     @staticmethod
     def apply_privacy_rules(db: Session, user_id: int, event: Event) -> Optional[Event]:
         """
-        Applies granular privacy rules (keyword redaction, pattern filtering).
-        Returns the event (potentially with redacted content), or None if dropped.
+        Applies user-defined granular privacy rules (keyword redaction & pattern drop).
+        
+        Important Design Note:
+        When redacting content, we construct an in-memory detached Event copy.
+        We deliberately DO NOT mutate the attached SQLAlchemy model instance,
+        as doing so would mark the record dirty and overwrite the user's permanent
+        database record with '[REDACTED BY PRIVACY RULE]' text.
         """
+        # Find active rules matching this category or global rules ('all')
         rules = db.query(PrivacyRule).filter(
             PrivacyRule.user_id == user_id,
             PrivacyRule.is_enabled == True,
@@ -61,9 +79,12 @@ class EventService:
             if not pattern:
                 continue
 
-            # Check if pattern matches in title or content
-            match = re.search(re.escape(pattern), content, re.IGNORECASE) or re.search(re.escape(pattern), event.title, re.IGNORECASE)
+            # Check if pattern matches in title or content (case-insensitive)
+            match = re.search(re.escape(pattern), content, re.IGNORECASE) or \
+                    re.search(re.escape(pattern), event.title, re.IGNORECASE)
+            
             if match:
+                # Action: Drop completely omits the event from query output
                 if rule.action == "drop":
                     AuditService.record_action(
                         db=db,
@@ -73,12 +94,19 @@ class EventService:
                         event_type=event.type
                     )
                     return None
+
+                # Action: Redact replaces the sensitive keyword in memory
                 elif rule.action in ("redact", "mask"):
-                    content = re.sub(re.escape(pattern), "[REDACTED BY PRIVACY RULE]", content, flags=re.IGNORECASE)
+                    content = re.sub(
+                        re.escape(pattern),
+                        "[REDACTED BY PRIVACY RULE]",
+                        content,
+                        flags=re.IGNORECASE
+                    )
                     was_redacted = True
 
         if was_redacted:
-            # Return an in-memory modified event copy so database is not permanently corrupted
+            # Construct a safe in-memory event copy for client response
             redacted_event = Event(
                 id=event.id,
                 user_id=event.user_id,
@@ -110,13 +138,19 @@ class EventService:
         offset: int = 0
     ) -> Tuple[List[Event], int]:
         """
-        Retrieves events respecting user privacy permissions, date ranges, and full-text search.
-        Applies automated granular privacy rules (redaction/drop).
+        Retrieves timeline events for the active user.
+        
+        Guarantees:
+        1. Only enabled categories are included in the SQL query (`WHERE type IN (...)`).
+        2. Disabled categories are never loaded from SQLite into memory.
+        3. Supports date-range time slicing and full-text keyword search across title & content.
+        4. Applies granular redaction and drop rules before returning data.
         """
         allowed_categories = PrivacyService.get_allowed_categories(db, user_id)
 
-        # If user explicitly filtered by a category that is disabled, return empty
+        # Case 1: User explicitly requested a single category via ?type=...
         if type_filter:
+            # If that category is currently toggled OFF, return an empty list
             if type_filter not in allowed_categories:
                 AuditService.record_action(
                     db=db,
@@ -127,6 +161,8 @@ class EventService:
                 )
                 return [], 0
             query = db.query(Event).filter(Event.user_id == user_id, Event.type == type_filter)
+        
+        # Case 2: General timeline query across all permitted categories
         else:
             if not allowed_categories:
                 AuditService.record_action(
@@ -137,9 +173,10 @@ class EventService:
                     event_type="all"
                 )
                 return [], 0
+            # Strict SQL query-level filtering
             query = db.query(Event).filter(Event.user_id == user_id, Event.type.in_(allowed_categories))
 
-        # Date-range filtering
+        # Date-range filtering (ISO 8601 UTC)
         if start_date:
             query = query.filter(Event.timestamp >= start_date)
         if end_date:
@@ -155,13 +192,14 @@ class EventService:
         total = query.count()
         raw_items = query.order_by(desc(Event.timestamp)).offset(offset).limit(limit).all()
 
-        # Apply granular privacy rules
+        # Apply granular privacy rules (keyword redaction or pattern drop)
         processed_items = []
         for ev in raw_items:
             processed = EventService.apply_privacy_rules(db, user_id, ev)
             if processed is not None:
                 processed_items.append(processed)
 
+        # Record permitted collection retrieval in audit log
         AuditService.record_action(
             db=db,
             user_id=user_id,
@@ -174,7 +212,13 @@ class EventService:
     @staticmethod
     def get_event_by_id(db: Session, user_id: int, event_id: int) -> Event:
         """
-        Retrieves a single event by ID. Enforces category permissions and privacy rules.
+        Retrieves a single event by ID.
+        
+        Security Invariants:
+        1. Checks tenant isolation: event must belong to the active user.
+        2. Enforces active permissions: if the event's category is OFF, raises HTTP 403 Forbidden
+           and immediately writes a DENIED entry to the audit log.
+        3. Evaluates granular privacy rules: if an active rule drops this event, raises 403.
         """
         event = db.query(Event).filter(Event.id == event_id, Event.user_id == user_id).first()
         if not event:
@@ -197,7 +241,7 @@ class EventService:
                 detail=f"Access to '{event.type}' events is restricted by your active privacy settings."
             )
 
-        # Apply granular rules
+        # Apply granular rules (redaction / drop)
         processed = EventService.apply_privacy_rules(db, user_id, event)
         if processed is None:
             AuditService.record_action(
@@ -225,6 +269,7 @@ class EventService:
     def delete_event(db: Session, user_id: int, event_id: int) -> bool:
         """
         Deletes an event by ID and records a DELETED audit log.
+        Ensures users can only delete events that belong to their own account.
         """
         event = db.query(Event).filter(Event.id == event_id, Event.user_id == user_id).first()
         if not event:
@@ -237,6 +282,7 @@ class EventService:
         db.delete(event)
         db.commit()
 
+        # Audit trail: record deletion
         AuditService.record_action(
             db=db,
             user_id=user_id,

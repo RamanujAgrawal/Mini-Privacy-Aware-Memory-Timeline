@@ -24,6 +24,14 @@ def _generate_export_data(
     start_date: Optional[datetime] = None,
     end_date: Optional[datetime] = None
 ):
+    """
+    Assembles a portable data package for the user under GDPR Article 20 / CCPA.
+    
+    Crucial Privacy Guarantee:
+    We invoke EventService.get_events() so that the user's active category
+    permissions and granular redaction rules are strictly applied.
+    Disabled categories or redacted phrases are never leaked into the export archive.
+    """
     user = db.query(User).filter(User.id == user_id).first()
     user_name = user.name if user else f"User {user_id}"
 
