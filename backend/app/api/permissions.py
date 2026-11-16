@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.api.deps import get_current_user_id
 from app.schemas.permission import PermissionUpdate, PermissionResponse, PermissionsState
+from app.schemas.error import ErrorResponse, ValidationErrorResponse
 from app.services.privacy_service import PrivacyService
 
 router = APIRouter(tags=["Privacy Permissions"])
@@ -11,7 +12,10 @@ router = APIRouter(tags=["Privacy Permissions"])
 @router.get(
     "/permissions",
     response_model=PermissionsState,
-    summary="Get user privacy permission settings"
+    summary="Get user privacy permission settings",
+    responses={
+        200: {"description": "Active permissions map returned for all 4 core categories."}
+    }
 )
 def get_permissions(
     db: Session = Depends(get_db),
@@ -31,7 +35,14 @@ def get_permissions(
 @router.put(
     "/permissions",
     response_model=PermissionResponse,
-    summary="Update a category permission (ON/OFF)"
+    summary="Update a category permission (ON/OFF)",
+    responses={
+        200: {"description": "Permission updated and recorded in audit trail."},
+        422: {
+            "model": ValidationErrorResponse,
+            "description": "Validation Error: invalid category or boolean value."
+        }
+    }
 )
 def update_permission(
     payload: PermissionUpdate,

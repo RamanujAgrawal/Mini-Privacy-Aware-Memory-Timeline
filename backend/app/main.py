@@ -1,6 +1,9 @@
 import os
+import http
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, status, HTTPException
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from app.core.config import settings, ROOT_DIR
@@ -54,6 +57,58 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    """
+    Transforms Pydantic validation failures into clear, structured, sensible error responses.
+    """
+    errors = []
+    error_messages = []
+    for err in exc.errors():
+        loc_str = " -> ".join(str(l) for l in err.get("loc", []))
+        msg = err.get("msg", "Validation error")
+        errors.append({
+            "field": loc_str,
+            "message": msg,
+            "type": err.get("type", "value_error")
+        })
+        error_messages.append(f"{loc_str}: {msg}")
+    
+    summary = "; ".join(error_messages)
+    return JSONResponse(
+        status_code=422,
+        content={
+            "status_code": 422,
+            "error": "Unprocessable Entity",
+            "message": f"Validation failed: {summary}",
+            "detail": summary,
+            "errors": errors
+        }
+    )
+
+
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request: Request, exc: HTTPException):
+    """
+    Standardizes HTTP error responses across the application.
+    """
+    try:
+        phrase = http.HTTPStatus(exc.status_code).phrase
+    except ValueError:
+        phrase = "Error"
+    
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={
+            "status_code": exc.status_code,
+            "error": phrase,
+            "message": str(exc.detail),
+            "detail": str(exc.detail)
+        }
+    )
+
 
 # Include both root-level endpoints and versioned endpoints
 app.include_router(api_router)

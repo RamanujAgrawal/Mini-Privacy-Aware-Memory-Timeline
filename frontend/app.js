@@ -95,7 +95,7 @@ function renderPermissions() {
         <div class="category-icon ${meta.class}">${meta.icon}</div>
         <div>
           <div class="toggle-name">${meta.label}</div>
-          <div class="toggle-status-text">${isEnabled ? "✓ Active (API allowed)" : "✕ Restricted (API blocked)"}</div>
+          <div class="toggle-status-text ${isEnabled ? 'active' : 'blocked'}">${isEnabled ? "✓ Active (API allowed)" : "✕ Restricted (API blocked)"}</div>
         </div>
       </div>
       <label class="switch">
@@ -302,7 +302,7 @@ async function probeDirectEvent() {
       probeResult.className = "probe-output denied";
       probeResult.innerHTML = `
         <strong>HTTP 403 Forbidden (Blocked by Backend)</strong><br>
-        Detail: ${escapeHtml(data.detail)}<br>
+        Detail: ${escapeHtml(data.detail || data.message)}<br>
         <em>Audit trail recorded a DENIED security entry.</em>
       `;
     } else if (res.status === 404) {

@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.api.deps import get_current_user_id
 from app.schemas.event import EventCreate, EventResponse, EventListResponse
+from app.schemas.error import ErrorResponse, ValidationErrorResponse
 from app.services.event_service import EventService
 
 router = APIRouter(tags=["Events"])
@@ -12,12 +13,19 @@ router = APIRouter(tags=["Events"])
 @router.get(
     "/events",
     response_model=EventListResponse,
-    summary="List events with privacy filtering and pagination"
+    summary="List events with privacy filtering and pagination",
+    responses={
+        200: {"description": "Events retrieved successfully (restricted categories strictly omitted at SQL level)."},
+        422: {
+            "model": ValidationErrorResponse,
+            "description": "Validation Error: invalid query parameters (e.g., limit < 1 or invalid category name)."
+        }
+    }
 )
 def list_events(
     type: Optional[str] = Query(None, description="Filter events by category (conversation, location, physiological, note)"),
-    limit: int = Query(20, ge=1, le=100, description="Max number of items to return"),
-    offset: int = Query(0, ge=0, description="Pagination offset"),
+    limit: int = Query(20, ge=1, le=100, description="Max number of items to return (1-100)"),
+    offset: int = Query(0, ge=0, description="Pagination offset (>= 0)"),
     db: Session = Depends(get_db),
     user_id: int = Depends(get_current_user_id)
 ):
@@ -43,7 +51,22 @@ def list_events(
 @router.get(
     "/events/{event_id}",
     response_model=EventResponse,
-    summary="Get a single event by ID"
+    summary="Get a single event by ID",
+    responses={
+        200: {"description": "Event details retrieved successfully."},
+        403: {
+            "model": ErrorResponse,
+            "description": "Forbidden: Access restricted by active user privacy settings (generates a DENIED audit entry)."
+        },
+        404: {
+            "model": ErrorResponse,
+            "description": "Not Found: The requested event ID does not exist for this user."
+        },
+        422: {
+            "model": ValidationErrorResponse,
+            "description": "Validation Error: event_id must be a valid integer."
+        }
+    }
 )
 def get_event(
     event_id: int,
@@ -63,7 +86,14 @@ def get_event(
     "/events",
     response_model=EventResponse,
     status_code=status.HTTP_201_CREATED,
-    summary="Create a new event"
+    summary="Create a new event",
+    responses={
+        201: {"description": "Event created and indexed successfully."},
+        422: {
+            "model": ValidationErrorResponse,
+            "description": "Validation Error: title or content cannot be empty whitespace, and category must be valid."
+        }
+    }
 )
 def create_event(
     event_in: EventCreate,
@@ -80,7 +110,18 @@ def create_event(
 @router.delete(
     "/events/{event_id}",
     status_code=status.HTTP_200_OK,
-    summary="Delete an event by ID"
+    summary="Delete an event by ID",
+    responses={
+        200: {"description": "Event successfully deleted from user's timeline."},
+        404: {
+            "model": ErrorResponse,
+            "description": "Not Found: The event ID does not exist."
+        },
+        422: {
+            "model": ValidationErrorResponse,
+            "description": "Validation Error: event_id must be an integer."
+        }
+    }
 )
 def delete_event(
     event_id: int,
