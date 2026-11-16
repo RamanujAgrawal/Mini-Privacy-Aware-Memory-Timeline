@@ -328,6 +328,33 @@ input:checked + .slider:before {
   margin-bottom: 1.25rem;
 }
 
+.toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.sim-pulse-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #94a3b8;
+  display: inline-block;
+  transition: all 0.2s ease;
+}
+
+#toggleSimBtn.sim-active {
+  border-color: #10b981;
+  color: #047857;
+  background: #ecfdf5;
+}
+
+#toggleSimBtn.sim-active .sim-pulse-dot {
+  background: #10b981;
+  box-shadow: 0 0 8px #10b981;
+  animation: pulse 1.5s infinite ease-in-out;
+}
+
 .filter-group {
   display: flex;
   align-items: center;

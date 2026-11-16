@@ -95,6 +95,16 @@ python run.py
 - **Interactive Swagger Docs**: [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
 - **ReDoc Documentation**: [http://127.0.0.1:8000/redoc](http://127.0.0.1:8000/redoc)
 
+### 6. Automation & Demonstration Scripts
+```bash
+# One-command full automated verification of privacy rules, 403 Forbidden checks, and test suite:
+python automate_demo.py
+
+# Run live wearable telemetry simulator (generates sensor events periodically):
+python backend/simulator.py
+```
+*(On Windows, you can also double-click `start.bat` to initialize and launch the application in one step).*
+
 ---
 
 ## API Documentation

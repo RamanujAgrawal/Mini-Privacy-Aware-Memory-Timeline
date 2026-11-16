@@ -45,6 +45,58 @@ const runProbeBtn = document.getElementById("runProbeBtn");
 const probeResult = document.getElementById("probeResult");
 const toast = document.getElementById("toast");
 
+// Simulator elements & state
+const toggleSimBtn = document.getElementById("toggleSimBtn");
+const simBtnText = document.getElementById("simBtnText");
+let simIntervalId = null;
+
+const simEventsPool = [
+  { type: "conversation", title: "Discussion with Product Designer", content: "Talked about spatial audio transcription and user privacy boundaries." },
+  { type: "location", title: "Transit: Metro Station Departure", content: "Location ping: 4th & King Caltrain Station. GPS accuracy: 4.2m." },
+  { type: "physiological", title: "Heart Rate Baseline Reading", content: "Current heart rate: 76 BPM. Ambient temperature: 21°C." },
+  { type: "note", title: "Voice Memo: Chronis Feature Idea", content: "Add semantic clustering to automatically group conversation topics." },
+  { type: "location", title: "Arrived at Fitness Center", content: "Location ping: Equinox SOMA. Geo-fence entered." },
+  { type: "physiological", title: "Elevated Heart Rate Detected", content: "Cardio activity detected: 135 BPM during incline sprint." }
+];
+
+async function postSimulatedEvent() {
+  const item = simEventsPool[Math.floor(Math.random() * simEventsPool.length)];
+  try {
+    const res = await fetch(`${API_BASE}/events`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(item)
+    });
+    if (res.ok) {
+      const created = await res.json();
+      showToast(`⚡ Live Telemetry: Simulated ${created.type} event #${created.id}`);
+      await fetchEvents();
+    }
+  } catch (err) {
+    console.error("Simulation error:", err);
+  }
+}
+
+function toggleSimulation() {
+  if (simIntervalId) {
+    clearInterval(simIntervalId);
+    simIntervalId = null;
+    toggleSimBtn.classList.remove("sim-active");
+    simBtnText.textContent = "Auto-Stream: OFF";
+    showToast("Live simulation paused");
+  } else {
+    toggleSimBtn.classList.add("sim-active");
+    simBtnText.textContent = "Auto-Stream: LIVE";
+    showToast("Live simulation started (new event every 6s)");
+    postSimulatedEvent();
+    simIntervalId = setInterval(postSimulatedEvent, 6000);
+  }
+}
+
+if (toggleSimBtn) {
+  toggleSimBtn.addEventListener("click", toggleSimulation);
+}
+
 // Navigation Tab Switcher
 function switchView(viewName) {
   navTabs.forEach(tab => {

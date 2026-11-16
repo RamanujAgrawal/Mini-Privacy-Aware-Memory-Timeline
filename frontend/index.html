@@ -83,7 +83,13 @@
             <button class="btn btn-filter" data-type="note">Note</button>
           </div>
         </div>
-        <button id="openCreateModalBtn" class="btn btn-primary">+ New Event</button>
+        <div class="toolbar-actions">
+          <button id="toggleSimBtn" class="btn btn-outline" title="Auto-simulate incoming events from Chronis companion every 6 seconds">
+            <span class="sim-pulse-dot"></span>
+            <span id="simBtnText">Auto-Stream: OFF</span>
+          </button>
+          <button id="openCreateModalBtn" class="btn btn-primary">+ New Event</button>
+        </div>
       </div>
 
       <!-- Events List -->
