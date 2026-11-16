@@ -25,12 +25,15 @@ async def lifespan(app: FastAPI):
         if not demo_user:
             demo_user = User(
                 id=settings.DEFAULT_USER_ID,
-                name="Alex River (Demo User)",
+                name="Demo User",
                 email="demo.user@chronis.ai"
             )
             db.add(demo_user)
             db.commit()
             db.refresh(demo_user)
+        elif demo_user.name != "Demo User":
+            demo_user.name = "Demo User"
+            db.commit()
         # Ensure default permissions exist
         PrivacyService.ensure_default_permissions(db, demo_user.id)
     finally:

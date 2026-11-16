@@ -28,14 +28,17 @@ def seed_database():
         if not user:
             user = User(
                 id=1,
-                name="Alex River",
-                email="alex.river@chronis.ai"
+                name="Demo User",
+                email="demo.user@chronis.ai"
             )
             db.add(user)
             db.commit()
             db.refresh(user)
             print(f"Created demo user: {user.name} (ID: {user.id})")
         else:
+            if user.name != "Demo User":
+                user.name = "Demo User"
+                db.commit()
             print(f"Found existing demo user: {user.name} (ID: {user.id})")
 
         # 2. Ensure Permissions

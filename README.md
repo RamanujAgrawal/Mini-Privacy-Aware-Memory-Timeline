@@ -79,7 +79,7 @@ pip install -r backend/requirements.txt
 ```bash
 python backend/seed.py
 ```
-*Creates the database tables, configures demo user `Alex River (ID: 1)`, sets all 4 permissions to `ON`, and seeds 8 realistic memory timeline events.*
+*Creates the database tables, configures demo user `Demo User (ID: 1)`, sets all 4 permissions to `ON`, and seeds 8 realistic memory timeline events.*
 
 ### 4. Run Automated Test Suite
 ```bash
