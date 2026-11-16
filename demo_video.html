@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chronis • Demo Video Walkthrough (2:35)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0b1120;
+      --card-bg: #0f172a;
+      --border: #1e293b;
+      --border-focus: #38bdf8;
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
+      --primary: #38bdf8;
+      --accent: #34d399;
+      --danger: #fb7185;
+      --warning: #fbbf24;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Plus Jakarta Sans', -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    header {
+      padding: 16px 32px;
+      background: var(--card-bg);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .brand-logo {
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      background: linear-gradient(135deg, #0284c7, #38bdf8);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-weight: 800;
+    }
+    .brand-title { font-size: 1.25rem; font-weight: 700; letter-spacing: -0.02em; }
+    .brand-subtitle { font-size: 0.8rem; color: var(--text-muted); }
+    .actions { display: flex; gap: 12px; }
+    .btn {
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      border: 1px solid var(--border);
+      background: #1e293b;
+      color: var(--text);
+      transition: all 0.2s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      text-decoration: none;
+    }
+    .btn:hover { background: #334155; border-color: var(--primary); }
+    .btn-primary { background: #0284c7; border-color: #0284c7; color: white; }
+    .btn-primary:hover { background: #0369a1; }
+    
+    .main-container {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 1fr 420px;
+      gap: 24px;
+      padding: 24px 32px;
+      max-width: 1700px;
+      margin: 0 auto;
+      width: 100%;
+    }
+    @media (max-width: 1100px) {
+      .main-container { grid-template-columns: 1fr; }
+    }
+    
+    .video-section {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .video-wrapper {
+      position: relative;
+      background: black;
+      border-radius: 14px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+      box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+    }
+    video {
+      width: 100%;
+      height: auto;
+      display: block;
+      aspect-ratio: 16 / 9;
+    }
+    
+    .video-info {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .video-title { font-size: 1.2rem; font-weight: 700; color: var(--primary); }
+    .video-desc { font-size: 0.9rem; color: var(--text-muted); line-height: 1.6; }
+    .meta-tags { display: flex; flex-wrap: wrap; gap: 8px; }
+    .meta-tag {
+      background: #1e293b;
+      border: 1px solid #334155;
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      color: #cbd5e1;
+    }
+    
+    .sidebar {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .panel {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .panel-header {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: var(--text);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .chapter-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      max-height: 520px;
+      overflow-y: auto;
+      padding-right: 4px;
+    }
+    .chapter-item {
+      padding: 12px 14px;
+      border-radius: 8px;
+      background: #131d31;
+      border: 1px solid var(--border);
+      cursor: pointer;
+      transition: all 0.15s ease;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .chapter-item:hover {
+      background: #1e293b;
+      border-color: var(--primary);
+    }
+    .chapter-item.active {
+      background: rgba(2, 132, 199, 0.15);
+      border-color: var(--primary);
+    }
+    .chapter-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .chapter-time {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.75rem;
+      color: var(--primary);
+      font-weight: 700;
+      background: #0f172a;
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+    .chapter-title {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--text);
+    }
+    .chapter-narration {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      line-height: 1.4;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="brand">
+      <div class="brand-logo">⏱</div>
+      <div>
+        <div class="brand-title">Chronis • Demo Video Walkthrough</div>
+        <div class="brand-subtitle">Technical Evaluation Prototype • Duration: 2 minutes 35 seconds</div>
+      </div>
+    </div>
+    <div class="actions">
+      <a href="demo_video.mp4" download="Chronis_Demo_Walkthrough.mp4" class="btn btn-primary">
+        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+        Download MP4 (2.02 MB)
+      </a>
+      <a href="http://127.0.0.1:8000" target="_blank" class="btn">
+        Launch Live UI ↗
+      </a>
+    </div>
+  </header>
+
+  <div class="main-container">
+    <div class="video-section">
+      <div class="video-wrapper">
+        <video id="player" controls autoplay preload="metadata">
+          <source src="demo_video.mp4" type="video/mp4">
+          Your browser does not support the video tag.
+        </video>
+      </div>
+
+      <div class="video-info">
+        <div class="video-title">Chronis • Privacy-Aware Memory Timeline for AI Wearables</div>
+        <div class="video-desc">
+          This 2.5-minute technical demonstration illustrates the complete architecture and privacy guarantees of Chronis. It covers multi-modal continuous telemetry ingestion across 4 categories (Conversation, Location, Physiological, Note), strict backend authorization at the SQL query level, single-resource 403 Forbidden enforcement, immutable forensic audit trails, and 4 newly implemented enterprise extensions (JWT auth, search, granular keyword redaction rules, and GDPR data portability).
+        </div>
+        <div class="meta-tags">
+          <span class="meta-tag">FastAPI (Python 3.12)</span>
+          <span class="meta-tag">SQLAlchemy 2.0</span>
+          <span class="meta-tag">SQLite Database</span>
+          <span class="meta-tag">1080p Full HD</span>
+          <span class="meta-tag">16/16 Tests Passing</span>
+          <span class="meta-tag">Turnkey Execution</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="sidebar">
+      <div class="panel">
+        <div class="panel-header">
+          <span>Video Chapters & Transcript</span>
+          <button id="ttsToggle" class="btn" style="padding: 4px 10px; font-size: 0.75rem;">
+            🔊 Narrate Aloud
+          </button>
+        </div>
+        <div class="chapter-list" id="chapterList">
+          <!-- Chapters rendered by JS -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const chapters = [
+      {
+        time: 0,
+        timeStr: "0:00",
+        title: "1. System Overview & Architecture",
+        narration: "Welcome to Chronis — a production-grade, privacy-aware memory timeline designed for wearable AI companions. Built with FastAPI and SQLite."
+      },
+      {
+        time: 20,
+        timeStr: "0:20",
+        title: "2. Multi-Modal Streams & Threat Model",
+        narration: "Wearables capture conversations, locations, vitals, and notes. Client-side privacy masking is fatal; Chronis eliminates unpermitted data at the database layer."
+      },
+      {
+        time: 40,
+        timeStr: "0:40",
+        title: "3. Live Timeline & Wearable Telemetry",
+        narration: "Here is the live Chronis Timeline interface. Events are ingested chronologically with exact IST timestamps and distinctive category badges."
+      },
+      {
+        time: 62,
+        timeStr: "1:02",
+        title: "4. Dynamic Privacy Controls & SQL Elimination",
+        narration: "Users can toggle categories ON or OFF. Subsequent collection queries execute SQL-level filtering where restricted categories are completely omitted."
+      },
+      {
+        time: 84,
+        timeStr: "1:24",
+        title: "5. Security Probe & 403 Forbidden Enforcement",
+        narration: "Our built-in Security Probe allows direct testing of single-resource retrieval. If a category is OFF, lookups trigger an immediate 403 Forbidden."
+      },
+      {
+        time: 106,
+        timeStr: "1:46",
+        title: "6. Immutable Forensic Audit Trail",
+        narration: "The Audit Trail provides complete transparency. Every sensitive operation is logged. The trail is strictly immutable and read-only."
+      },
+      {
+        time: 128,
+        timeStr: "2:08",
+        title: "7. Advanced Architectural Approaches",
+        narration: "We implemented four advanced enterprise architectures: JWT multi-tenancy, date/keyword search, granular privacy rules, and GDPR data export."
+      },
+      {
+        time: 148,
+        timeStr: "2:28",
+        title: "8. Automated Verification & Conclusion",
+        narration: "All 16 unit tests and 11 end-to-end verification steps pass in under 2 seconds. Chronis is complete and ready for evaluation."
+      }
+    ];
+
+    const player = document.getElementById("player");
+    const list = document.getElementById("chapterList");
+    const ttsBtn = document.getElementById("ttsToggle");
+    let ttsEnabled = false;
+    let lastSpokenChapter = -1;
+
+    // Render chapters
+    chapters.forEach((ch, idx) => {
+      const item = document.createElement("div");
+      item.className = "chapter-item" + (idx === 0 ? " active" : "");
+      item.id = `chap-${idx}`;
+      item.innerHTML = `
+        <div class="chapter-top">
+          <span class="chapter-title">${ch.title}</span>
+          <span class="chapter-time">${ch.timeStr}</span>
+        </div>
+        <div class="chapter-narration">"${ch.narration}"</div>
+      `;
+      item.addEventListener("click", () => {
+        player.currentTime = ch.time;
+        player.play();
+        highlightChapter(idx);
+        if (ttsEnabled) speakNarration(ch.narration);
+      });
+      list.appendChild(item);
+    });
+
+    function highlightChapter(index) {
+      document.querySelectorAll(".chapter-item").forEach((el, i) => {
+        el.classList.toggle("active", i === index);
+      });
+      const activeEl = document.getElementById(`chap-${index}`);
+      if (activeEl) {
+        activeEl.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      }
+    }
+
+    // Track video time
+    player.addEventListener("timeupdate", () => {
+      const cur = player.currentTime;
+      let activeIdx = 0;
+      for (let i = chapters.length - 1; i >= 0; i--) {
+        if (cur >= chapters[i].time) {
+          activeIdx = i;
+          break;
+        }
+      }
+      highlightChapter(activeIdx);
+
+      if (ttsEnabled && activeIdx !== lastSpokenChapter) {
+        lastSpokenChapter = activeIdx;
+        speakNarration(chapters[activeIdx].narration);
+      }
+    });
+
+    function speakNarration(text) {
+      if (!window.speechSynthesis) return;
+      window.speechSynthesis.cancel();
+      const utter = new SpeechSynthesisUtterance(text);
+      utter.rate = 1.05;
+      utter.pitch = 1.0;
+      window.speechSynthesis.speak(utter);
+    }
+
+    ttsBtn.addEventListener("click", () => {
+      ttsEnabled = !ttsEnabled;
+      ttsBtn.style.color = ttsEnabled ? "var(--accent)" : "var(--text)";
+      ttsBtn.style.borderColor = ttsEnabled ? "var(--accent)" : "var(--border)";
+      ttsBtn.textContent = ttsEnabled ? "🔊 Narration Active" : "🔊 Narrate Aloud";
+      if (ttsEnabled) {
+        const cur = player.currentTime;
+        let activeIdx = 0;
+        for (let i = chapters.length - 1; i >= 0; i--) {
+          if (cur >= chapters[i].time) { activeIdx = i; break; }
+        }
+        speakNarration(chapters[activeIdx].narration);
+      } else {
+        window.speechSynthesis.cancel();
+      }
+    });
+  </script>
+</body>
+</html>
