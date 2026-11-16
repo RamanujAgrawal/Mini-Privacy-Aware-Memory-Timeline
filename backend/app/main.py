@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from app.core.config import settings
+from app.core.config import settings, ROOT_DIR
 from app.core.database import engine, Base, SessionLocal
 from app.api import api_router
 from app.models.user import User
@@ -70,8 +70,6 @@ def health_check():
 
 
 # Mount frontend static files (served at /)
-# Location: project_root/frontend
-base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-frontend_dir = os.path.join(base_dir, "frontend")
+frontend_dir = os.path.join(ROOT_DIR, "frontend")
 if os.path.exists(frontend_dir):
     app.mount("/", StaticFiles(directory=frontend_dir, html=True), name="frontend")

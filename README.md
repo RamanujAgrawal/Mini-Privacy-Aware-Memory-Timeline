@@ -59,8 +59,8 @@ flowchart TD
 ### 2. Setup Virtual Environment & Dependencies
 ```bash
 # Clone the repository
-git clone <repo-url>
-cd SarvamAI
+git clone https://github.com/RamanujAgrawal/Mini-Privacy-Aware-Memory-Timeline.git
+cd Mini-Privacy-Aware-Memory-Timeline
 
 # Create virtual environment
 python -m venv .venv
