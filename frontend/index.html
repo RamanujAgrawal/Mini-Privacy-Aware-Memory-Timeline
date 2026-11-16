@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chronis • Privacy-Aware Memory Timeline</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Header -->
+  <header class="navbar">
+    <div class="nav-container">
+      <div class="brand">
+        <div class="logo-mark">⚡</div>
+        <div class="brand-text">
+          <h1>CHRONIS</h1>
+          <span class="subtext">Privacy-Aware Memory Timeline</span>
+        </div>
+      </div>
+      <div class="nav-actions">
+        <div class="user-chip">
+          <span class="avatar">AR</span>
+          <div class="user-info">
+            <span class="user-name">Alex River</span>
+            <span class="user-id">Demo User #1</span>
+          </div>
+        </div>
+        <a href="/docs" target="_blank" class="btn btn-secondary btn-sm">
+          <span>Swagger API Docs ↗</span>
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <main class="main-container">
+    <!-- Privacy Control Banner (Core Requirement) -->
+    <section class="card privacy-banner">
+      <div class="section-header">
+        <div>
+          <h2>Privacy Controls <span class="badge-core">Backend Enforced</span></h2>
+          <p class="section-desc">Categories toggled OFF are strictly excluded from API query results. Direct access to restricted IDs returns <code>403 Forbidden</code>.</p>
+        </div>
+        <button id="refreshAllBtn" class="btn btn-outline btn-sm" title="Refresh all data">↻ Refresh</button>
+      </div>
+
+      <div class="toggles-grid" id="permissionsGrid">
+        <!-- Rendered by app.js -->
+        <div class="toggle-placeholder">Loading privacy controls...</div>
+      </div>
+    </section>
+
+    <!-- Main Grid: Timeline & Controls (Left) vs Audit Log (Right) -->
+    <div class="workspace-grid">
+      <!-- Left Column: Timeline & Creation -->
+      <section class="left-pane">
+        <!-- Timeline Controls & Filters -->
+        <div class="card timeline-header-card">
+          <div class="filter-bar">
+            <div class="filter-group">
+              <span class="filter-label">Filter Category:</span>
+              <div class="btn-group" id="categoryFilters">
+                <button class="btn btn-filter active" data-type="all">All</button>
+                <button class="btn btn-filter" data-type="conversation">Conversation</button>
+                <button class="btn btn-filter" data-type="location">Location</button>
+                <button class="btn btn-filter" data-type="physiological">Physiological</button>
+                <button class="btn btn-filter" data-type="note">Note</button>
+              </div>
+            </div>
+            <button id="openCreateModalBtn" class="btn btn-primary">+ New Memory Event</button>
+          </div>
+        </div>
+
+        <!-- Direct API Privacy Probe (Demo Tool) -->
+        <div class="card probe-card">
+          <div class="probe-header">
+            <span class="probe-title">🧪 API Direct Probe (Test Backend Authorization)</span>
+            <span class="probe-desc">Attempt direct GET on an event ID to verify 403 Forbidden enforcement.</span>
+          </div>
+          <div class="probe-form">
+            <input type="number" id="probeEventId" placeholder="Event ID (e.g. 1)" value="1" min="1" class="input-sm">
+            <button id="runProbeBtn" class="btn btn-secondary btn-sm">Direct GET /events/{id}</button>
+          </div>
+          <div id="probeResult" class="probe-output hidden"></div>
+        </div>
+
+        <!-- Timeline Events List -->
+        <div class="timeline-container">
+          <div class="timeline-meta">
+            <h3 id="timelineHeading">Memory Timeline</h3>
+            <span class="meta-count" id="eventsCount">Loading events...</span>
+          </div>
+          <div class="events-list" id="eventsList">
+            <!-- Events rendered by app.js -->
+          </div>
+          
+          <!-- Pagination -->
+          <div class="pagination-bar" id="paginationBar">
+            <button id="prevPageBtn" class="btn btn-outline btn-sm" disabled>← Previous</button>
+            <span id="pageInfo" class="page-info">Page 1</span>
+            <button id="nextPageBtn" class="btn btn-outline btn-sm">Next →</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Right Column: Audit Log -->
+      <aside class="right-pane">
+        <div class="card audit-card">
+          <div class="audit-header">
+            <div>
+              <h3>Audit Trail <span class="badge-readonly">Read-Only</span></h3>
+              <p class="section-desc">Immutable log of privacy checks, updates, and data actions.</p>
+            </div>
+            <button id="refreshAuditBtn" class="btn btn-icon" title="Refresh Audit Log">↻</button>
+          </div>
+
+          <div class="audit-list" id="auditList">
+            <!-- Audit entries rendered by app.js -->
+            <div class="audit-placeholder">Loading audit trail...</div>
+          </div>
+        </div>
+      </aside>
+    </div>
+  </main>
+
+  <!-- Create Event Modal -->
+  <div id="createModal" class="modal-overlay hidden">
+    <div class="modal card">
+      <div class="modal-header">
+        <h3>Create New Memory Event</h3>
+        <button id="closeCreateModalBtn" class="modal-close">&times;</button>
+      </div>
+      <form id="createEventForm">
+        <div class="form-group">
+          <label for="eventCategory">Category</label>
+          <select id="eventCategory" required>
+            <option value="conversation">Conversation</option>
+            <option value="location">Location</option>
+            <option value="physiological">Physiological</option>
+            <option value="note">Note</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="eventTitle">Title</label>
+          <input type="text" id="eventTitle" placeholder="e.g. Heart Rate Peak or Project Discussion" required maxlength="255">
+        </div>
+        <div class="form-group">
+          <label for="eventContent">Content</label>
+          <textarea id="eventContent" rows="4" placeholder="Event details and sensor / speech telemetry..." required></textarea>
+        </div>
+        <div class="modal-actions">
+          <button type="button" id="cancelCreateBtn" class="btn btn-outline">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save Event</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="toast" class="toast hidden"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
