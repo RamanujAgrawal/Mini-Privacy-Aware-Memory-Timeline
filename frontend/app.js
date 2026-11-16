@@ -4,6 +4,9 @@ const API_BASE = window.location.origin;
 // State
 let currentPermissions = {};
 let currentCategoryFilter = "all";
+let currentSearch = "";
+let currentStartDate = "";
+let currentEndDate = "";
 let currentPage = 1;
 const pageSize = 10;
 let totalEvents = 0;
@@ -44,6 +47,13 @@ const auditList = document.getElementById("auditList");
 const refreshAuditBtn = document.getElementById("refreshAuditBtn");
 const refreshAllBtn = document.getElementById("refreshAllBtn");
 
+// Search & Date Filter Elements
+const searchInput = document.getElementById("searchInput");
+const clearSearchBtn = document.getElementById("clearSearchBtn");
+const startDateInput = document.getElementById("startDateInput");
+const endDateInput = document.getElementById("endDateInput");
+const resetFiltersBtn = document.getElementById("resetFiltersBtn");
+
 // Navigation Tabs
 const navTabs = document.querySelectorAll(".nav-tab");
 const viewPanels = document.querySelectorAll(".view-panel");
@@ -54,6 +64,20 @@ const openCreateModalBtn = document.getElementById("openCreateModalBtn");
 const closeCreateModalBtn = document.getElementById("closeCreateModalBtn");
 const cancelCreateBtn = document.getElementById("cancelCreateBtn");
 const createEventForm = document.getElementById("createEventForm");
+
+// Export Modal Elements
+const exportModal = document.getElementById("exportModal");
+const openExportModalBtn = document.getElementById("openExportModalBtn");
+const closeExportModalBtn = document.getElementById("closeExportModalBtn");
+const cancelExportBtn = document.getElementById("cancelExportBtn");
+const executeExportBtn = document.getElementById("executeExportBtn");
+const includeAuditTrail = document.getElementById("includeAuditTrail");
+
+// User Profile Modal Elements
+const profileModal = document.getElementById("profileModal");
+const userProfileChip = document.getElementById("userProfileChip");
+const closeProfileModalBtn = document.getElementById("closeProfileModalBtn");
+const closeProfileBtn = document.getElementById("closeProfileBtn");
 
 // Probe elements
 const probeEventId = document.getElementById("probeEventId");
@@ -75,8 +99,15 @@ const simEventsPool = [
   { type: "physiological", title: "Elevated Heart Rate Detected", content: "Cardio activity detected: 135 BPM during incline sprint." }
 ];
 
-async function postSimulatedEvent() {
-  const item = simEventsPool[Math.floor(Math.random() * simEventsPool.length)];
+async function postSimulatedEvent(specificType = null) {
+  let pool = simEventsPool;
+  if (specificType) {
+    pool = simEventsPool.filter(e => e.type === specificType);
+    if (!pool.length) {
+      pool = [{ type: specificType, title: `Manual ${specificType} capture`, content: `Captured telemetry for category: ${specificType}` }];
+    }
+  }
+  const item = pool[Math.floor(Math.random() * pool.length)];
   try {
     const res = await fetch(`${API_BASE}/events`, {
       method: "POST",
@@ -85,11 +116,12 @@ async function postSimulatedEvent() {
     });
     if (res.ok) {
       const created = await res.json();
-      showToast(`⚡ Live Telemetry: Simulated ${created.type} event #${created.id}`);
+      showToast(`⚡ Telemetry Ingested: Simulated ${created.type} event #${created.id}`);
       await fetchEvents();
     }
   } catch (err) {
     console.error("Simulation error:", err);
+    showToast(`Simulation error: ${err.message}`, "error");
   }
 }
 
@@ -243,6 +275,15 @@ async function fetchEvents() {
     let url = `${API_BASE}/events?limit=${pageSize}&offset=${offset}`;
     if (currentCategoryFilter !== "all") {
       url += `&type=${currentCategoryFilter}`;
+    }
+    if (currentSearch) {
+      url += `&q=${encodeURIComponent(currentSearch)}`;
+    }
+    if (currentStartDate) {
+      url += `&start_date=${encodeURIComponent(currentStartDate)}`;
+    }
+    if (currentEndDate) {
+      url += `&end_date=${encodeURIComponent(currentEndDate)}`;
     }
 
     const res = await fetch(url);
@@ -452,6 +493,167 @@ createEventForm.addEventListener("submit", async (e) => {
     showToast(`Error creating event: ${err.message}`, "error");
   }
 });
+
+// Search & Date Filter Handlers
+let searchDebounceTimeout = null;
+if (searchInput) {
+  searchInput.addEventListener("input", (e) => {
+    const val = e.target.value.trim();
+    if (clearSearchBtn) {
+      clearSearchBtn.classList.toggle("hidden", !val);
+    }
+    clearTimeout(searchDebounceTimeout);
+    searchDebounceTimeout = setTimeout(() => {
+      currentSearch = val;
+      currentPage = 1;
+      fetchEvents();
+    }, 350);
+  });
+}
+
+if (clearSearchBtn) {
+  clearSearchBtn.addEventListener("click", () => {
+    searchInput.value = "";
+    clearSearchBtn.classList.add("hidden");
+    currentSearch = "";
+    currentPage = 1;
+    fetchEvents();
+  });
+}
+
+if (startDateInput) {
+  startDateInput.addEventListener("change", (e) => {
+    const val = e.target.value;
+    currentStartDate = val ? new Date(val).toISOString() : "";
+    currentPage = 1;
+    fetchEvents();
+  });
+}
+
+if (endDateInput) {
+  endDateInput.addEventListener("change", (e) => {
+    const val = e.target.value;
+    currentEndDate = val ? new Date(val).toISOString() : "";
+    currentPage = 1;
+    fetchEvents();
+  });
+}
+
+if (resetFiltersBtn) {
+  resetFiltersBtn.addEventListener("click", () => {
+    if (searchInput) searchInput.value = "";
+    if (clearSearchBtn) clearSearchBtn.classList.add("hidden");
+    if (startDateInput) startDateInput.value = "";
+    if (endDateInput) endDateInput.value = "";
+    currentSearch = "";
+    currentStartDate = "";
+    currentEndDate = "";
+    currentCategoryFilter = "all";
+    document.querySelectorAll(".btn-filter").forEach(b => {
+      b.classList.toggle("active", b.getAttribute("data-type") === "all");
+    });
+    currentPage = 1;
+    fetchEvents();
+    showToast("All search and date filters reset");
+  });
+}
+
+// Wearable Simulator Specific Buttons
+document.querySelectorAll(".btn-sim").forEach(btn => {
+  btn.addEventListener("click", () => {
+    const simType = btn.getAttribute("data-sim-type");
+    postSimulatedEvent(simType);
+  });
+});
+
+// Export Modal Handlers
+if (openExportModalBtn) {
+  openExportModalBtn.addEventListener("click", () => {
+    exportModal.classList.remove("hidden");
+  });
+}
+
+if (closeExportModalBtn) {
+  closeExportModalBtn.addEventListener("click", () => exportModal.classList.add("hidden"));
+}
+
+if (cancelExportBtn) {
+  cancelExportBtn.addEventListener("click", () => exportModal.classList.add("hidden"));
+}
+
+if (executeExportBtn) {
+  executeExportBtn.addEventListener("click", async () => {
+    const formatRadio = document.querySelector('input[name="exportFormat"]:checked');
+    const selectedFormat = formatRadio ? formatRadio.value : "json";
+    const includeAudit = includeAuditTrail ? includeAuditTrail.checked : true;
+
+    executeExportBtn.disabled = true;
+    executeExportBtn.textContent = "Generating Export...";
+
+    try {
+      const res = await fetch(`${API_BASE}/export`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          format: selectedFormat,
+          include_audit_trail: includeAudit
+        })
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.detail || "Export failed");
+      }
+
+      if (selectedFormat === "csv") {
+        const blob = await res.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `chronis_memory_export_${Date.now()}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        window.URL.revokeObjectURL(url);
+      } else {
+        const data = await res.json();
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `chronis_memory_export_${Date.now()}.json`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        window.URL.revokeObjectURL(url);
+      }
+
+      exportModal.classList.add("hidden");
+      showToast(`📥 Export downloaded successfully (${selectedFormat.toUpperCase()})`);
+    } catch (err) {
+      console.error("Export error:", err);
+      showToast(`Export error: ${err.message}`, "error");
+    } finally {
+      executeExportBtn.disabled = false;
+      executeExportBtn.textContent = "Download Export";
+    }
+  });
+}
+
+// User Profile Modal Handlers
+if (userProfileChip) {
+  userProfileChip.addEventListener("click", () => {
+    profileModal.classList.remove("hidden");
+  });
+}
+
+if (closeProfileModalBtn) {
+  closeProfileModalBtn.addEventListener("click", () => profileModal.classList.add("hidden"));
+}
+
+if (closeProfileBtn) {
+  closeProfileBtn.addEventListener("click", () => profileModal.classList.add("hidden"));
+}
 
 // Category Filter buttons
 categoryFilters.addEventListener("click", (e) => {
