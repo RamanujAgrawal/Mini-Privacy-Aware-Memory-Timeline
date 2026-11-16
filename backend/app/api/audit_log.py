@@ -21,6 +21,11 @@ router = APIRouter(tags=["Audit Log"])
         }
     }
 )
+@router.get(
+    "/audit-logs",
+    response_model=AuditLogListResponse,
+    include_in_schema=False
+)
 def get_audit_log(
     limit: int = Query(100, ge=1, le=500, description="Max audit entries to retrieve (1-500)"),
     offset: int = Query(0, ge=0, description="Offset for pagination (>= 0)"),

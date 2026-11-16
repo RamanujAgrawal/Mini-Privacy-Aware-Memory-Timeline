@@ -140,8 +140,42 @@ def run_automated_demo():
     restored_get = client.get(f"/events/{location_event_id}")
     assert_success(restored_get.status_code == 200, f"Event #{location_event_id} is immediately accessible again (HTTP 200 OK)")
 
-    # Step 10: Run Automated Pytest Suite
-    print_step(10, "Executing Full Automated Pytest Test Suite")
+    # Step 10: Advanced Architectural Approaches Verification
+    print_step(10, "Verifying Advanced Approaches: Auth, Search, Granular Rules, GDPR Export")
+    # 1. JWT Auth
+    auth_res = client.post("/auth/register", json={
+        "name": "Audit Auditor",
+        "email": f"auditor_{int(datetime.now().timestamp())}@chronis.ai",
+        "password": "SecurePassword123!"
+    })
+    assert_success(auth_res.status_code == 201, "JWT User Registration & Bearer Token Generation successful")
+    jwt_token = auth_res.json()["access_token"]
+    me_res = client.get("/auth/me", headers={"Authorization": f"Bearer {jwt_token}"})
+    assert_success(me_res.status_code == 200, "Authenticated /auth/me profile access verified")
+
+    # 2. Full-text search
+    search_res = client.get("/events?q=privacy")
+    assert_success(search_res.status_code == 200, f"Full-text search query 'q=privacy' executed ({search_res.json()['total']} matches)")
+
+    # 3. Granular Privacy Rule
+    rule_res = client.post("/privacy-rules", json={
+        "category": "conversation",
+        "rule_type": "keyword_redact",
+        "pattern": "confidential",
+        "action": "redact"
+    })
+    assert_success(rule_res.status_code == 201, "Automated Granular Privacy Rule created (keyword_redact)")
+    rule_id = rule_res.json()["id"]
+    client.delete(f"/privacy-rules/{rule_id}")
+
+    # 4. GDPR / CCPA Export
+    export_json = client.post("/export", json={"format": "json", "include_audit_trail": True})
+    assert_success(export_json.status_code == 200, "GDPR / CCPA JSON Data Portability Export generated")
+    export_csv = client.post("/export", json={"format": "csv", "include_audit_trail": True})
+    assert_success(export_csv.status_code == 200 and "text/csv" in export_csv.headers["content-type"], "GDPR / CCPA CSV Data Portability Export generated")
+
+    # Step 11: Run Automated Pytest Suite
+    print_step(11, "Executing Full Automated Pytest Test Suite")
     pytest_cmd = [sys.executable, "-m", "pytest", os.path.join(BASE_DIR, "backend", "tests"), "-v"]
     print(f"Running: {' '.join(pytest_cmd)}")
     result = subprocess.run(pytest_cmd, capture_output=True, text=True)

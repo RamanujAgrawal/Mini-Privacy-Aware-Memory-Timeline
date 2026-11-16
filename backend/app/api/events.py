@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Optional
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
@@ -10,10 +11,23 @@ from app.services.event_service import EventService
 router = APIRouter(tags=["Events"])
 
 
+def _parse_datetime_query(val: Optional[str]) -> Optional[datetime]:
+    if not val:
+        return None
+    cleaned = val.strip().replace(" ", "+")
+    try:
+        return datetime.fromisoformat(cleaned)
+    except Exception:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Invalid datetime format: '{val}'. Expected ISO 8601 string."
+        )
+
+
 @router.get(
     "/events",
     response_model=EventListResponse,
-    summary="List events with privacy filtering and pagination",
+    summary="List events with privacy filtering, search, date-range, and pagination",
     responses={
         200: {"description": "Events retrieved successfully (restricted categories strictly omitted at SQL level)."},
         422: {
@@ -24,6 +38,9 @@ router = APIRouter(tags=["Events"])
 )
 def list_events(
     type: Optional[str] = Query(None, description="Filter events by category (conversation, location, physiological, note)"),
+    start_date: Optional[str] = Query(None, description="Filter events on or after this timestamp (ISO 8601)"),
+    end_date: Optional[str] = Query(None, description="Filter events on or before this timestamp (ISO 8601)"),
+    q: Optional[str] = Query(None, description="Full-text search query across event title and content"),
     limit: int = Query(20, ge=1, le=100, description="Max number of items to return (1-100)"),
     offset: int = Query(0, ge=0, description="Pagination offset (>= 0)"),
     db: Session = Depends(get_db),
@@ -32,11 +49,18 @@ def list_events(
     """
     Returns events for the active user in descending chronological order.
     Categories turned OFF in user privacy settings are strictly omitted.
+    Supports full-text keyword search, date-range filtering, and pagination.
     """
+    parsed_start = _parse_datetime_query(start_date)
+    parsed_end = _parse_datetime_query(end_date)
+
     items, total = EventService.get_events(
         db=db,
         user_id=user_id,
         type_filter=type,
+        start_date=parsed_start,
+        end_date=parsed_end,
+        search_query=q,
         limit=limit,
         offset=offset
     )

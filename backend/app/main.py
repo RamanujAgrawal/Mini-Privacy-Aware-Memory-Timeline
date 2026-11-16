@@ -15,6 +15,21 @@ from app.services.privacy_service import PrivacyService
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Safe lightweight SQLite migration for added columns
+    if settings.DATABASE_URL.startswith("sqlite"):
+        try:
+            with engine.connect() as conn:
+                from sqlalchemy import text
+                res = conn.execute(text("PRAGMA table_info(users)"))
+                cols = [r[1] for r in res.fetchall()]
+                if cols and "hashed_password" not in cols:
+                    conn.execute(text("ALTER TABLE users ADD COLUMN hashed_password VARCHAR(255)"))
+                if cols and "is_active" not in cols:
+                    conn.execute(text("ALTER TABLE users ADD COLUMN is_active BOOLEAN DEFAULT 1"))
+                conn.commit()
+        except Exception:
+            pass
+
     # Create all tables on startup
     Base.metadata.create_all(bind=engine)
     

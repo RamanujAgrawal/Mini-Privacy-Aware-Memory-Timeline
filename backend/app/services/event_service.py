@@ -1,9 +1,11 @@
+import re
 from datetime import datetime, timezone
 from typing import Optional, List, Tuple
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
-from sqlalchemy import desc
+from sqlalchemy import desc, or_
 from app.models.event import Event
+from app.models.privacy_rule import PrivacyRule
 from app.schemas.event import EventCreate
 from app.services.privacy_service import PrivacyService
 from app.services.audit_service import AuditService
@@ -27,7 +29,6 @@ class EventService:
         db.commit()
         db.refresh(event)
 
-        # Audit log creation
         AuditService.record_action(
             db=db,
             user_id=user_id,
@@ -38,17 +39,79 @@ class EventService:
         return event
 
     @staticmethod
+    def apply_privacy_rules(db: Session, user_id: int, event: Event) -> Optional[Event]:
+        """
+        Applies granular privacy rules (keyword redaction, pattern filtering).
+        Returns the event (potentially with redacted content), or None if dropped.
+        """
+        rules = db.query(PrivacyRule).filter(
+            PrivacyRule.user_id == user_id,
+            PrivacyRule.is_enabled == True,
+            or_(PrivacyRule.category == event.type, PrivacyRule.category == "all")
+        ).all()
+
+        if not rules:
+            return event
+
+        content = event.content
+        was_redacted = False
+
+        for rule in rules:
+            pattern = rule.pattern.strip()
+            if not pattern:
+                continue
+
+            # Check if pattern matches in title or content
+            match = re.search(re.escape(pattern), content, re.IGNORECASE) or re.search(re.escape(pattern), event.title, re.IGNORECASE)
+            if match:
+                if rule.action == "drop":
+                    AuditService.record_action(
+                        db=db,
+                        user_id=user_id,
+                        action="PRIVACY_RULE_DROP",
+                        result="DENIED",
+                        event_type=event.type
+                    )
+                    return None
+                elif rule.action in ("redact", "mask"):
+                    content = re.sub(re.escape(pattern), "[REDACTED BY PRIVACY RULE]", content, flags=re.IGNORECASE)
+                    was_redacted = True
+
+        if was_redacted:
+            # Return an in-memory modified event copy so database is not permanently corrupted
+            redacted_event = Event(
+                id=event.id,
+                user_id=event.user_id,
+                timestamp=event.timestamp,
+                type=event.type,
+                title=event.title,
+                content=content
+            )
+            AuditService.record_action(
+                db=db,
+                user_id=user_id,
+                action="PRIVACY_RULE_REDACT",
+                result="ALLOWED_REDACTED",
+                event_type=event.type
+            )
+            return redacted_event
+
+        return event
+
+    @staticmethod
     def get_events(
         db: Session,
         user_id: int,
         type_filter: Optional[str] = None,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+        search_query: Optional[str] = None,
         limit: int = 20,
         offset: int = 0
     ) -> Tuple[List[Event], int]:
         """
-        Retrieves events respecting the user's active privacy permissions.
-        Events whose category is turned OFF are strictly omitted at query level.
-        Supports pagination and type filtering.
+        Retrieves events respecting user privacy permissions, date ranges, and full-text search.
+        Applies automated granular privacy rules (redaction/drop).
         """
         allowed_categories = PrivacyService.get_allowed_categories(db, user_id)
 
@@ -63,14 +126,8 @@ class EventService:
                     event_type=type_filter
                 )
                 return [], 0
-            
-            # Query only this specific allowed category
-            query = db.query(Event).filter(
-                Event.user_id == user_id,
-                Event.type == type_filter
-            )
+            query = db.query(Event).filter(Event.user_id == user_id, Event.type == type_filter)
         else:
-            # Query all allowed categories
             if not allowed_categories:
                 AuditService.record_action(
                     db=db,
@@ -80,14 +137,30 @@ class EventService:
                     event_type="all"
                 )
                 return [], 0
+            query = db.query(Event).filter(Event.user_id == user_id, Event.type.in_(allowed_categories))
 
-            query = db.query(Event).filter(
-                Event.user_id == user_id,
-                Event.type.in_(allowed_categories)
+        # Date-range filtering
+        if start_date:
+            query = query.filter(Event.timestamp >= start_date)
+        if end_date:
+            query = query.filter(Event.timestamp <= end_date)
+
+        # Full-text keyword search across title and content
+        if search_query and search_query.strip():
+            term = f"%{search_query.strip()}%"
+            query = query.filter(
+                or_(Event.title.ilike(term), Event.content.ilike(term))
             )
 
         total = query.count()
-        items = query.order_by(desc(Event.timestamp)).offset(offset).limit(limit).all()
+        raw_items = query.order_by(desc(Event.timestamp)).offset(offset).limit(limit).all()
+
+        # Apply granular privacy rules
+        processed_items = []
+        for ev in raw_items:
+            processed = EventService.apply_privacy_rules(db, user_id, ev)
+            if processed is not None:
+                processed_items.append(processed)
 
         AuditService.record_action(
             db=db,
@@ -96,14 +169,12 @@ class EventService:
             result="ALLOWED",
             event_type=type_filter or "all_allowed"
         )
-        return items, total
+        return processed_items, total
 
     @staticmethod
     def get_event_by_id(db: Session, user_id: int, event_id: int) -> Event:
         """
-        Retrieves a single event by ID.
-        If category is disabled by privacy settings, raises HTTP 403 Forbidden
-        and records a DENIED audit log entry.
+        Retrieves a single event by ID. Enforces category permissions and privacy rules.
         """
         event = db.query(Event).filter(Event.id == event_id, Event.user_id == user_id).first()
         if not event:
@@ -112,7 +183,7 @@ class EventService:
                 detail=f"Event with ID {event_id} not found."
             )
 
-        # Enforce privacy check
+        # Enforce category permission check
         if not PrivacyService.is_category_allowed(db, user_id, event.type):
             AuditService.record_action(
                 db=db,
@@ -126,6 +197,21 @@ class EventService:
                 detail=f"Access to '{event.type}' events is restricted by your active privacy settings."
             )
 
+        # Apply granular rules
+        processed = EventService.apply_privacy_rules(db, user_id, event)
+        if processed is None:
+            AuditService.record_action(
+                db=db,
+                user_id=user_id,
+                action="GET_EVENT_DETAIL",
+                result="DENIED_RULE_DROP",
+                event_type=event.type
+            )
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Access to event #{event_id} is restricted by an active granular privacy rule."
+            )
+
         AuditService.record_action(
             db=db,
             user_id=user_id,
@@ -133,7 +219,7 @@ class EventService:
             result="ALLOWED",
             event_type=event.type
         )
-        return event
+        return processed
 
     @staticmethod
     def delete_event(db: Session, user_id: int, event_id: int) -> bool:
